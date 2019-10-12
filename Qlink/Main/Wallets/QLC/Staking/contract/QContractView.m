@@ -18,6 +18,7 @@
 #import "ConfigUtil.h"
 #import <QLCFramework/QLCFramework.h>
 #import "NSString+RandomStr.h"
+#import "QLogHelper.h"
 
 static NSString * const PublicKeyB = @"02c6e68c61480003ed163f72b41cbb50ded29d79e513fd299d2cb844318b1b8ad5";
 
@@ -92,7 +93,7 @@ static NSString * const PublicKeyB = @"02c6e68c61480003ed163f72b41cbb50ded29d79e
 
 #pragma mark - Request
 #pragma mark - Benefit Pledge
-- (void)benefit_createMultiSig:(NSString *)neo_publicKey neo_wifKey:(NSString *)neo_wifKey fromAddress:(NSString *)fromAddress qlcAddress:(NSString *)qlcAddress qlcAmount:(NSString *)qlcAmount lockTime:(NSString *)lockTime qlc_privateKey:(NSString *)qlc_privateKey qlc_publicKey:(NSString *)qlc_publicKey resultHandler:(void (^)(NSString *result, BOOL success))resultHandler {
+- (void)benefit_createMultiSig:(NSString *)neo_publicKey neo_wifKey:(NSString *)neo_wifKey fromAddress:(NSString *)fromAddress qlcAddress:(NSString *)qlcAddress qlcAmount:(NSString *)qlcAmount lockTime:(NSString *)lockTime qlc_privateKey:(NSString *)qlc_privateKey qlc_publicKey:(NSString *)qlc_publicKey resultHandler:(QContractResultBlock)resultHandler {
     
     NSArray *argu1 = @[neo_publicKey,PublicKeyB];
     DDLogDebug(@"staking.createMultiSig argu1 = %@",argu1);
@@ -106,11 +107,12 @@ static NSString * const PublicKeyB = @"02c6e68c61480003ed163f72b41cbb50ded29d79e
     }];
 }
 
-- (void)benefit_contractLock:(NSString *)neo_publicKey neo_wifKey:(NSString *)neo_wifKey fromAddress:(NSString *)fromAddress toAddress:(NSString *)toAddress qlcAddress:(NSString *)qlcAddress qlcAmount:(NSString *)qlcAmount lockTime:(NSString *)lockTime qlc_publicKey:(NSString *)qlc_publicKey qlc_privateKey:(NSString *)qlc_privateKey resultHandler:(void (^)(NSString *result, BOOL success))resultHandler {
+- (void)benefit_contractLock:(NSString *)neo_publicKey neo_wifKey:(NSString *)neo_wifKey fromAddress:(NSString *)fromAddress toAddress:(NSString *)toAddress qlcAddress:(NSString *)qlcAddress qlcAmount:(NSString *)qlcAmount lockTime:(NSString *)lockTime qlc_publicKey:(NSString *)qlc_publicKey qlc_privateKey:(NSString *)qlc_privateKey resultHandler:(QContractResultBlock)resultHandler {
     NSArray *argu2 = @[neo_wifKey,fromAddress,toAddress,qlcAddress,qlcAmount,lockTime];
     DDLogDebug(@"staking.contractLock argu2 = %@",argu2);
     kWeakSelf(self);
-    [_dwebview callHandler:@"staking.contractLock" arguments:argu2 completionHandler:^(NSDictionary * _Nullable value) {
+    NSString *callMethod = @"staking.contractLock";
+    [_dwebview callHandler:callMethod arguments:argu2 completionHandler:^(NSDictionary * _Nullable value) {
         DDLogDebug(@"contractLock: %@",value);
         
         NSInteger result = [value[@"result"] integerValue];
@@ -119,14 +121,18 @@ static NSString * const PublicKeyB = @"02c6e68c61480003ed163f72b41cbb50ded29d79e
             [weakself nep5_prePareBenefitPledge:qlcAddress qlcAmount:qlcAmount multiSigAddress:toAddress neo_publicKey:neo_publicKey lockTxId:lockTxId qlc_privateKey:qlc_privateKey qlc_publicKey:qlc_publicKey resultHandler:resultHandler];
         } else {
             if (resultHandler) {
-                resultHandler(nil, NO);
+                NSString *des = [@"contractLock error" stringByAppendingFormat:@"   ***method:%@   ***fromAddress:%@   ***neo_publicKey:%@   ***error:%@",callMethod,fromAddress,neo_publicKey,value.mj_JSONString];
+                resultHandler(nil, NO, des);
+                NSString *className = NSStringFromClass([self class]);
+                NSString *methodName = NSStringFromSelector(_cmd);
+                [QLogHelper requestLog_saveWithClass:className method:methodName logStr:des];
             }
         }
         
     }];
 }
 
-- (void)nep5_prePareBenefitPledge:(NSString *)qlcAddress qlcAmount:(NSString *)qlcAmount multiSigAddress:(NSString *)multiSigAddress neo_publicKey:(NSString *)neo_publicKey lockTxId:(NSString *)lockTxId qlc_privateKey:(NSString *)qlc_privateKey qlc_publicKey:(NSString *)qlc_publicKey resultHandler:(void (^)(NSString *result, BOOL success))resultHandler {
+- (void)nep5_prePareBenefitPledge:(NSString *)qlcAddress qlcAmount:(NSString *)qlcAmount multiSigAddress:(NSString *)multiSigAddress neo_publicKey:(NSString *)neo_publicKey lockTxId:(NSString *)lockTxId qlc_privateKey:(NSString *)qlc_privateKey qlc_publicKey:(NSString *)qlc_publicKey resultHandler:(QContractResultBlock)resultHandler {
     AFJSONRPCClient *client = [AFJSONRPCClient clientWithEndpointURL:[NSURL URLWithString:[ConfigUtil get_qlc_staking_node]]];
     // Invocation with Parameters and Request ID
     NSString *requestId = [NSString randomOf32];
@@ -141,19 +147,28 @@ static NSString * const PublicKeyB = @"02c6e68c61480003ed163f72b41cbb50ded29d79e
             [weakself benefit_getnep5transferbytxid:lockTxId qlc_publicKey:qlc_publicKey qlc_privateKey:qlc_privateKey resultHandler:resultHandler];
         } else {
             if (resultHandler) {
-                resultHandler(nil, NO);
+//                NSString *test = [@"ss" stringByAppendingString:@""];
+                NSString *des = [@"nep5_prePareBenefitPledge error" stringByAppendingFormat:@"   ***method:%@   ***error:%@",@"nep5_prePareBenefitPledge",responseObject];
+                resultHandler(nil, NO, des);
+                NSString *className = NSStringFromClass([self class]);
+                NSString *methodName = NSStringFromSelector(_cmd);
+                [QLogHelper requestLog_saveWithClass:className method:methodName logStr:des];
             }
         }
     } failure:^(NSURLSessionDataTask *task, NSError *error) {
         if (resultHandler) {
-            resultHandler(nil, NO);
+            NSString *des = [@"nep5_prePareBenefitPledge error" stringByAppendingFormat:@"   ***method:%@   ***error:%@",@"nep5_prePareBenefitPledge",error.description];
+            resultHandler(nil, NO, des);
+            NSString *className = NSStringFromClass([self class]);
+            NSString *methodName = NSStringFromSelector(_cmd);
+            [QLogHelper requestLog_saveWithClass:className method:methodName logStr:des];
         }
         NSLog(@"error=%@",error);
     }];
     
 }
 
-- (void)benefit_getnep5transferbytxid:(NSString *)lockTxId qlc_publicKey:(NSString *)qlc_publicKey qlc_privateKey:(NSString *)qlc_privateKey resultHandler:(void (^)(NSString *result, BOOL success))resultHandler {
+- (void)benefit_getnep5transferbytxid:(NSString *)lockTxId qlc_publicKey:(NSString *)qlc_publicKey qlc_privateKey:(NSString *)qlc_privateKey resultHandler:(QContractResultBlock)resultHandler {
 //    NSString *requestId = [NSString randomOf32];
 //    NSDictionary *params = @{@"jsonrpc":@"2.0",@"method":@"getnep5transferbytxid",@"params":[[NSString stringWithFormat:@"[\"%@\"]",lockTxId] stringByReplacingOccurrencesOfString:@"\\" withString:@""],@"id":requestId};
 //    NSString *urlStr = @"https://api.nel.group/api/mainnet";
@@ -162,25 +177,20 @@ static NSString * const PublicKeyB = @"02c6e68c61480003ed163f72b41cbb50ded29d79e
     
     kWeakSelf(self);
     DDLogDebug(@"benefit_getnep5transferbytxid urlStr = %@",urlStr);
-    [RequestService testRequestWithBaseURLStr8:urlStr params:params httpMethod:HttpMethodGet userInfo:nil requestManagerType:QRequestManagerTypeHTTP successBlock:^(NSURLSessionDataTask *dataTask, id responseObject) {
+    [RequestService normalRequestWithBaseURLStr8:urlStr params:params httpMethod:HttpMethodGet userInfo:nil requestManagerType:QRequestManagerTypeHTTP successBlock:^(NSURLSessionDataTask *dataTask, id responseObject) {
         DDLogDebug(@"benefit_getnep5transferbytxid responseObject=%@",responseObject);
         NSDictionary *responseDic = [responseObject mj_JSONObject];
 //        NSArray *resultDic = responseDic[@"result"];
         if (responseDic) {
             [weakself nep5_benefitPledge:lockTxId qlc_publicKey:qlc_publicKey qlc_privateKey:qlc_privateKey resultHandler:resultHandler];
         } else {
-//            NSDictionary *errorDic = responseDic[@"error"];
-//            NSString *dataStr = errorDic[@"data"];
-//            if ([dataStr isEqualToString:@"Data does not exist"]) {
-//                int64_t delayInSeconds = 3.0; // 延迟的时间
-//                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delayInSeconds * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-//                    [weakself benefit_getnep5transferbytxid:lockTxId qlc_publicKey:qlc_publicKey qlc_privateKey:qlc_privateKey resultHandler:resultHandler];
-//                });
-//            } else {
-                if (resultHandler) {
-                    resultHandler(nil, NO);
-                }
-//            }
+            if (resultHandler) {
+                NSString *des = [@"neo_get_transaction error" stringByAppendingFormat:@"   ***method:%@  ***error:%@",urlStr,[responseDic mj_JSONString]];
+                resultHandler(nil, NO, des);
+                NSString *className = NSStringFromClass([self class]);
+                NSString *methodName = NSStringFromSelector(_cmd);
+                [QLogHelper requestLog_saveWithClass:className method:methodName logStr:des];
+            }
         }
     } failedBlock:^(NSURLSessionDataTask *dataTask, NSError *error) {
         int64_t delayInSeconds = 3.0; // 延迟的时间
@@ -191,7 +201,7 @@ static NSString * const PublicKeyB = @"02c6e68c61480003ed163f72b41cbb50ded29d79e
     
 }
 
-- (void)nep5_benefitPledge:(NSString *)lockTxId qlc_publicKey:(NSString *)qlc_publicKey qlc_privateKey:(NSString *)qlc_privateKey resultHandler:(void (^)(NSString *result, BOOL success))resultHandler {
+- (void)nep5_benefitPledge:(NSString *)lockTxId qlc_publicKey:(NSString *)qlc_publicKey qlc_privateKey:(NSString *)qlc_privateKey resultHandler:(QContractResultBlock)resultHandler {
     AFJSONRPCClient *client = [AFJSONRPCClient clientWithEndpointURL:[NSURL URLWithString:[ConfigUtil get_qlc_staking_node]]];
     // Invocation with Parameters and Request ID
     NSString *requestId = [NSString randomOf32];
@@ -205,18 +215,64 @@ static NSString * const PublicKeyB = @"02c6e68c61480003ed163f72b41cbb50ded29d79e
             [weakself signAndWork:responseObject qlc_publicKey:qlc_publicKey qlc_privateKey:qlc_privateKey lockTxId:lockTxId unlockTxParams:nil resultHandler:resultHandler];
         } else {
             if (resultHandler) {
-                resultHandler(nil, NO);
+                NSString *des = [@"nep5_benefitPledge error" stringByAppendingFormat:@"   ***method:%@   ***error:%@",@"nep5_benefitPledge",[responseObject mj_JSONString]];
+                resultHandler(nil, NO, des);
+                NSString *className = NSStringFromClass([self class]);
+                NSString *methodName = NSStringFromSelector(_cmd);
+                [QLogHelper requestLog_saveWithClass:className method:methodName logStr:des];
             }
         }
     } failure:^(NSURLSessionDataTask *task, NSError *error) {
         if (resultHandler) {
-            resultHandler(nil, NO);
+            NSString *des = [@"nep5_benefitPledge error" stringByAppendingFormat:@"   ***method:%@    ***error:%@",@"nep5_benefitPledge",error.description];
+            resultHandler(nil, NO, des);
+            NSString *className = NSStringFromClass([self class]);
+            NSString *methodName = NSStringFromSelector(_cmd);
+            [QLogHelper requestLog_saveWithClass:className method:methodName logStr:des];
         }
         
         NSLog(@"error=%@",error);
     }];
     
 }
+
+
+- (void)ledger_pledgeInfoByTransactionID:(NSString *)lockTxId resultHandler:(QContractResultBlock)resultHandler {
+    AFJSONRPCClient *client = [AFJSONRPCClient clientWithEndpointURL:[NSURL URLWithString:[ConfigUtil get_qlc_staking_node]]];
+    NSString *requestId = [NSString randomOf32];
+    //    kWeakSelf(self);
+    NSArray *params = @[lockTxId];
+    DDLogDebug(@"ledger_pledgeInfoByTransactionID params = %@",params);
+    [client invokeMethod:@"ledger_pledgeInfoByTransactionID" withParameters:params requestId:requestId success:^(NSURLSessionDataTask *task, id responseObject) {
+        DDLogDebug(@"ledger_pledgeInfoByTransactionID responseObject=%@",responseObject);
+        
+        if (responseObject) {
+            if (resultHandler) {
+                resultHandler(@(0), YES, nil);
+            }
+        } else {
+            if (resultHandler) {
+                NSString *des = [@"ledger_pledgeInfoByTransactionID error" stringByAppendingFormat:@"   ***method:%@    ***error:%@",@"nep5_getLockInfo",[responseObject mj_JSONString]];
+                resultHandler(@(0), NO, des);
+                NSString *className = NSStringFromClass([self class]);
+                NSString *methodName = NSStringFromSelector(_cmd);
+                [QLogHelper requestLog_saveWithClass:className method:methodName logStr:des];
+            }
+        }
+    } failure:^(NSURLSessionDataTask *task, NSError *error) {
+        if (resultHandler) {
+            NSString *des = [@"ledger_pledgeInfoByTransactionID error" stringByAppendingFormat:@"   ***method:%@   ***error:%@",@"ledger_pledgeInfoByTransactionID",error.description];
+            resultHandler(@(1), NO, des);
+//            NSString *className = NSStringFromClass([self class]);
+//            NSString *methodName = NSStringFromSelector(_cmd);
+//            [QLogHelper requestLog_saveWithClass:className method:methodName logStr:des];
+        }
+        
+        NSLog(@"error=%@",error);
+    }];
+    
+}
+
 
 #pragma mark - Benefit Withdraw
 //- (void)request_benefit_neo_address:(NSString *)lockTxId resultHandler:(void (^)(NSString *result, BOOL success))resultHandler {
@@ -228,7 +284,7 @@ static NSString * const PublicKeyB = @"02c6e68c61480003ed163f72b41cbb50ded29d79e
 //
 ////    kWeakSelf(self);
 //    DDLogDebug(@"benefit_getnep5transferbytxid urlStr = %@",urlStr);
-//    [RequestService testRequestWithBaseURLStr8:urlStr params:params httpMethod:HttpMethodGet userInfo:nil requestManagerType:QRequestManagerTypeHTTP successBlock:^(NSURLSessionDataTask *dataTask, id responseObject) {
+//    [RequestService normalRequestWithBaseURLStr8:urlStr params:params httpMethod:HttpMethodGet userInfo:nil requestManagerType:QRequestManagerTypeHTTP successBlock:^(NSURLSessionDataTask *dataTask, id responseObject) {
 //        DDLogDebug(@"benefit_getnep5transferbytxid responseObject=%@",responseObject);
 //        NSDictionary *responseDic = [responseObject mj_JSONObject];
 //        NSArray *resultArr = responseDic[@"result"];
@@ -252,7 +308,7 @@ static NSString * const PublicKeyB = @"02c6e68c61480003ed163f72b41cbb50ded29d79e
 //
 //}
 
-- (void)nep5_getLockInfo:(NSString *)lockTxId resultHandler:(void (^)(NSString *result, BOOL success))resultHandler {
+- (void)nep5_getLockInfo:(NSString *)lockTxId resultHandler:(QContractResultBlock)resultHandler {
     AFJSONRPCClient *client = [AFJSONRPCClient clientWithEndpointURL:[NSURL URLWithString:[ConfigUtil get_qlc_staking_node]]];
     NSString *requestId = [NSString randomOf32];
     //    kWeakSelf(self);
@@ -262,18 +318,27 @@ static NSString * const PublicKeyB = @"02c6e68c61480003ed163f72b41cbb50ded29d79e
         DDLogDebug(@"nep5_getLockInfo responseObject=%@",responseObject);
         
         if (responseObject) {
-            NSString *neo_address = responseObject[@"neoAddress"];
+//            NSString *neo_address = responseObject[@"neoAddress"];
             if (resultHandler) {
-                resultHandler(neo_address, YES);
+//                resultHandler(neo_address, YES, nil);
+                resultHandler(responseObject, YES, nil);
             }
         } else {
             if (resultHandler) {
-                resultHandler(nil, NO);
+                NSString *des = [@"nep5_getLockInfo error" stringByAppendingFormat:@"   ***method:%@    ***error:%@",@"nep5_getLockInfo",[responseObject mj_JSONString]];
+                resultHandler(nil, NO, des);
+                NSString *className = NSStringFromClass([self class]);
+                NSString *methodName = NSStringFromSelector(_cmd);
+                [QLogHelper requestLog_saveWithClass:className method:methodName logStr:des];
             }
         }
     } failure:^(NSURLSessionDataTask *task, NSError *error) {
         if (resultHandler) {
-            resultHandler(nil, NO);
+            NSString *des = [@"nep5_getLockInfo error" stringByAppendingFormat:@"   ***method:%@   ***error:%@",@"nep5_getLockInfo",error.description];
+            resultHandler(nil, NO, des);
+            NSString *className = NSStringFromClass([self class]);
+            NSString *methodName = NSStringFromSelector(_cmd);
+            [QLogHelper requestLog_saveWithClass:className method:methodName logStr:des];
         }
         
         NSLog(@"error=%@",error);
@@ -281,7 +346,7 @@ static NSString * const PublicKeyB = @"02c6e68c61480003ed163f72b41cbb50ded29d79e
     
 }
 
-- (void)nep5_benefitWithdraw:(NSString *)lockTxId beneficial:(NSString *)beneficial amount:(NSString *)amount qlc_publicKey:(NSString *)qlc_publicKey qlc_privateKey:(NSString *)qlc_privateKey neo_publicKey:(NSString *)neo_publicKey neo_privateKey:(NSString *)neo_privateKey multisigAddress:(NSString *)multisigAddress resultHandler:(void (^)(NSString *result, BOOL success))resultHandler {
+- (void)nep5_benefitWithdraw:(NSString *)lockTxId beneficial:(NSString *)beneficial amount:(NSString *)amount qlc_publicKey:(NSString *)qlc_publicKey qlc_privateKey:(NSString *)qlc_privateKey neo_publicKey:(NSString *)neo_publicKey neo_privateKey:(NSString *)neo_privateKey multisigAddress:(NSString *)multisigAddress resultHandler:(QContractResultBlock)resultHandler {
     AFJSONRPCClient *client = [AFJSONRPCClient clientWithEndpointURL:[NSURL URLWithString:[ConfigUtil get_qlc_staking_node]]];
     // Invocation with Parameters and Request ID
     NSString *requestId = [NSString randomOf32];
@@ -295,12 +360,20 @@ static NSString * const PublicKeyB = @"02c6e68c61480003ed163f72b41cbb50ded29d79e
             [weakself request_UnlockTxParams:responseObject lockTxId:lockTxId qlc_publicKey:qlc_publicKey qlc_privateKey:qlc_privateKey neo_publicKey:neo_publicKey neo_privateKey:neo_privateKey multisigAddress:multisigAddress resultHandler:resultHandler];
         } else {
             if (resultHandler) {
-                resultHandler(nil, NO);
+                NSString *des = [@"nep5_benefitWithdraw error" stringByAppendingFormat:@"   ***method:%@   ***error:%@",@"nep5_benefitWithdraw",[responseObject mj_JSONString]];
+                resultHandler(nil, NO, des);
+                NSString *className = NSStringFromClass([self class]);
+                NSString *methodName = NSStringFromSelector(_cmd);
+                [QLogHelper requestLog_saveWithClass:className method:methodName logStr:des];
             }
         }
     } failure:^(NSURLSessionDataTask *task, NSError *error) {
         if (resultHandler) {
-            resultHandler(nil, NO);
+            NSString *des = [@"nep5_benefitWithdraw error" stringByAppendingFormat:@"   ***method:%@   ***error:%@",@"nep5_benefitWithdraw",error.description];
+            resultHandler(nil, NO, des);
+            NSString *className = NSStringFromClass([self class]);
+            NSString *methodName = NSStringFromSelector(_cmd);
+            [QLogHelper requestLog_saveWithClass:className method:methodName logStr:des];
         }
         
         NSLog(@"error=%@",error);
@@ -309,7 +382,7 @@ static NSString * const PublicKeyB = @"02c6e68c61480003ed163f72b41cbb50ded29d79e
 }
 
 #pragma mark - UnlockTxParams
-- (void)request_UnlockTxParams:(NSDictionary *)signAndWorkDic lockTxId:(NSString *)lockTxId qlc_publicKey:(NSString *)qlc_publicKey qlc_privateKey:(NSString *)qlc_privateKey neo_publicKey:(NSString *)neo_publicKey neo_privateKey:(NSString *)neo_privateKey multisigAddress:(NSString *)multisigAddress resultHandler:(void (^)(NSString *result, BOOL success))resultHandler {
+- (void)request_UnlockTxParams:(NSDictionary *)signAndWorkDic lockTxId:(NSString *)lockTxId qlc_publicKey:(NSString *)qlc_publicKey qlc_privateKey:(NSString *)qlc_privateKey neo_publicKey:(NSString *)neo_publicKey neo_privateKey:(NSString *)neo_privateKey multisigAddress:(NSString *)multisigAddress resultHandler:(QContractResultBlock)resultHandler {
     
     kWeakSelf(self);
     NSDictionary *params = @{@"multisigAddress":multisigAddress,@"txid":lockTxId};
@@ -331,12 +404,20 @@ static NSString * const PublicKeyB = @"02c6e68c61480003ed163f72b41cbb50ded29d79e
             }];
         } else {
             if (resultHandler) {
-                resultHandler(nil, NO);
+                NSString *des = [@"signature error" stringByAppendingFormat:@"   ***method:%@   ***error:%@",sys_contract_unlock_Url,[responseObject mj_JSONString]];
+                resultHandler(nil, NO, des);
+                NSString *className = NSStringFromClass([self class]);
+                NSString *methodName = NSStringFromSelector(_cmd);
+                [QLogHelper requestLog_saveWithClass:className method:methodName logStr:des];
             }
         }
     } failedBlock:^(NSURLSessionDataTask *dataTask, NSError *error) {
         if (resultHandler) {
-            resultHandler(nil, NO);
+            NSString *des = [@"signature error" stringByAppendingFormat:@"   ***method:%@    ***error:%@",sys_contract_unlock_Url,error.description];
+            resultHandler(nil, NO, des);
+            NSString *className = NSStringFromClass([self class]);
+            NSString *methodName = NSStringFromSelector(_cmd);
+            [QLogHelper requestLog_saveWithClass:className method:methodName logStr:des];
         }
         DDLogDebug(@"UnlockTxParams error=%@",error);
     }];
@@ -346,7 +427,7 @@ static NSString * const PublicKeyB = @"02c6e68c61480003ed163f72b41cbb50ded29d79e
 //
 //    kWeakSelf(self);
 //    DDLogDebug(@"UnlockTxParams urlStr = %@  params = %@",urlStr, params);
-//    [RequestService testRequestWithBaseURLStr8:urlStr params:params httpMethod:HttpMethodPost userInfo:nil requestManagerType: QRequestManagerTypeHTTP successBlock:^(NSURLSessionDataTask *dataTask, id responseObject) {
+//    [RequestService normalRequestWithBaseURLStr8:urlStr params:params httpMethod:HttpMethodPost userInfo:nil requestManagerType: QRequestManagerTypeHTTP successBlock:^(NSURLSessionDataTask *dataTask, id responseObject) {
 //
 //    } failedBlock:^(NSURLSessionDataTask *dataTask, NSError *error) {
 //
@@ -355,7 +436,7 @@ static NSString * const PublicKeyB = @"02c6e68c61480003ed163f72b41cbb50ded29d79e
 }
 
 #pragma mark - Mintage Pledge
-- (void)mintage_createMultiSig:(NSString *)neo_publicKey neo_wifKey:(NSString *)neo_wifKey fromAddress:(NSString *)fromAddress qlcAddress:(NSString *)qlcAddress qlcAmount:(NSString *)qlcAmount lockTime:(NSString *)lockTime qlc_privateKey:(NSString *)qlc_privateKey qlc_publicKey:(NSString *)qlc_publicKey tokenName:(NSString *)tokenName tokenSymbol:(NSString *)tokenSymbol totalSupply:(NSString *)totalSupply decimals:(NSString *)decimals resultHandler:(void (^)(NSString *result, BOOL success))resultHandler {
+- (void)mintage_createMultiSig:(NSString *)neo_publicKey neo_wifKey:(NSString *)neo_wifKey fromAddress:(NSString *)fromAddress qlcAddress:(NSString *)qlcAddress qlcAmount:(NSString *)qlcAmount lockTime:(NSString *)lockTime qlc_privateKey:(NSString *)qlc_privateKey qlc_publicKey:(NSString *)qlc_publicKey tokenName:(NSString *)tokenName tokenSymbol:(NSString *)tokenSymbol totalSupply:(NSString *)totalSupply decimals:(NSString *)decimals resultHandler:(QContractResultBlock)resultHandler {
     
     NSArray *argu1 = @[neo_publicKey,PublicKeyB];
     DDLogDebug(@"staking.createMultiSig argu1 = %@",argu1);
@@ -369,7 +450,7 @@ static NSString * const PublicKeyB = @"02c6e68c61480003ed163f72b41cbb50ded29d79e
     }];
 }
 
-- (void)mintage_contractLock:(NSString *)neo_publicKey neo_wifKey:(NSString *)neo_wifKey fromAddress:(NSString *)fromAddress toAddress:(NSString *)toAddress qlcAddress:(NSString *)qlcAddress qlcAmount:(NSString *)qlcAmount lockTime:(NSString *)lockTime qlc_publicKey:(NSString *)qlc_publicKey qlc_privateKey:(NSString *)qlc_privateKey tokenName:(NSString *)tokenName tokenSymbol:(NSString *)tokenSymbol totalSupply:(NSString *)totalSupply decimals:(NSString *)decimals resultHandler:(void (^)(NSString *result, BOOL success))resultHandler {
+- (void)mintage_contractLock:(NSString *)neo_publicKey neo_wifKey:(NSString *)neo_wifKey fromAddress:(NSString *)fromAddress toAddress:(NSString *)toAddress qlcAddress:(NSString *)qlcAddress qlcAmount:(NSString *)qlcAmount lockTime:(NSString *)lockTime qlc_publicKey:(NSString *)qlc_publicKey qlc_privateKey:(NSString *)qlc_privateKey tokenName:(NSString *)tokenName tokenSymbol:(NSString *)tokenSymbol totalSupply:(NSString *)totalSupply decimals:(NSString *)decimals resultHandler:(QContractResultBlock)resultHandler {
     NSArray *argu2 = @[neo_wifKey,fromAddress,toAddress,qlcAddress,qlcAmount,lockTime];
     DDLogDebug(@"staking.contractLock argu2 = %@",argu2);
     kWeakSelf(self);
@@ -383,14 +464,18 @@ static NSString * const PublicKeyB = @"02c6e68c61480003ed163f72b41cbb50ded29d79e
             [weakself nep5_prePareMintagePledge:qlcAddress tokenName:tokenName tokenSymbol:tokenSymbol totalSupply:totalSupply decimals:decimals multiSigAddress:toAddress neo_publicKey:neo_publicKey lockTxId:lockTxId qlc_privateKey:qlc_privateKey qlc_publicKey:qlc_publicKey resultHandler:resultHandler];
         } else {
             if (resultHandler) {
-                resultHandler(nil, NO);
+                NSString *des = [@"contractLock error" stringByAppendingFormat:@"   ***method:%@    ***error:%@",@"staking.contractLock",[value mj_JSONString]];
+                resultHandler(nil, NO, des);
+                NSString *className = NSStringFromClass([self class]);
+                NSString *methodName = NSStringFromSelector(_cmd);
+                [QLogHelper requestLog_saveWithClass:className method:methodName logStr:des];
             }
         }
         
     }];
 }
 
-- (void)nep5_prePareMintagePledge:(NSString *)qlcAddress tokenName:(NSString *)tokenName tokenSymbol:(NSString *)tokenSymbol totalSupply:(NSString *)totalSupply decimals:(NSString *)decimals multiSigAddress:(NSString *)multiSigAddress neo_publicKey:(NSString *)neo_publicKey lockTxId:(NSString *)lockTxId qlc_privateKey:(NSString *)qlc_privateKey qlc_publicKey:(NSString *)qlc_publicKey resultHandler:(void (^)(NSString *result, BOOL success))resultHandler {
+- (void)nep5_prePareMintagePledge:(NSString *)qlcAddress tokenName:(NSString *)tokenName tokenSymbol:(NSString *)tokenSymbol totalSupply:(NSString *)totalSupply decimals:(NSString *)decimals multiSigAddress:(NSString *)multiSigAddress neo_publicKey:(NSString *)neo_publicKey lockTxId:(NSString *)lockTxId qlc_privateKey:(NSString *)qlc_privateKey qlc_publicKey:(NSString *)qlc_publicKey resultHandler:(QContractResultBlock)resultHandler {
     AFJSONRPCClient *client = [AFJSONRPCClient clientWithEndpointURL:[NSURL URLWithString:[ConfigUtil get_qlc_staking_node]]];
     // Invocation with Parameters and Request ID
     NSString *requestId = [NSString randomOf32];
@@ -404,19 +489,27 @@ static NSString * const PublicKeyB = @"02c6e68c61480003ed163f72b41cbb50ded29d79e
             [weakself mintage_getnep5transferbytxid:lockTxId qlc_publicKey:qlc_publicKey qlc_privateKey:qlc_privateKey resultHandler:resultHandler];
         } else {
             if (resultHandler) {
-                resultHandler(nil, NO);
+                NSString *des = [@"nep5_prePareMintagePledge error" stringByAppendingFormat:@"   ***method:%@   ***error:%@",@"nep5_prePareMintagePledge",[responseObject mj_JSONString]];
+                resultHandler(nil, NO, des);
+                NSString *className = NSStringFromClass([self class]);
+                NSString *methodName = NSStringFromSelector(_cmd);
+                [QLogHelper requestLog_saveWithClass:className method:methodName logStr:des];
             }
         }
     } failure:^(NSURLSessionDataTask *task, NSError *error) {
         if (resultHandler) {
-            resultHandler(nil, NO);
+            NSString *des = [@"nep5_prePareMintagePledge error" stringByAppendingFormat:@"   ***method:%@   ***error:%@",@"nep5_prePareMintagePledge",error.description];
+            resultHandler(nil, NO, des);
+            NSString *className = NSStringFromClass([self class]);
+            NSString *methodName = NSStringFromSelector(_cmd);
+            [QLogHelper requestLog_saveWithClass:className method:methodName logStr:des];
         }
         NSLog(@"error=%@",error);
     }];
     
 }
 
-- (void)mintage_getnep5transferbytxid:(NSString *)lockTxId qlc_publicKey:(NSString *)qlc_publicKey qlc_privateKey:(NSString *)qlc_privateKey resultHandler:(void (^)(NSString *result, BOOL success))resultHandler {
+- (void)mintage_getnep5transferbytxid:(NSString *)lockTxId qlc_publicKey:(NSString *)qlc_publicKey qlc_privateKey:(NSString *)qlc_privateKey resultHandler:(QContractResultBlock)resultHandler {
 //    NSString *requestId = [NSString randomOf32];
 //    NSDictionary *params = @{@"jsonrpc":@"2.0",@"method":@"getnep5transferbytxid",@"params":[NSString stringWithFormat:@"[\"%@\"]",lockTxId],@"id":requestId};
 //    NSString *urlStr = @"https://api.nel.group/api/mainnet";
@@ -425,7 +518,7 @@ static NSString * const PublicKeyB = @"02c6e68c61480003ed163f72b41cbb50ded29d79e
     
     kWeakSelf(self);
     DDLogDebug(@"mintage_getnep5transferbytxid urlStr = %@",urlStr);
-    [RequestService testRequestWithBaseURLStr8:urlStr params:params httpMethod:HttpMethodGet userInfo:nil requestManagerType: QRequestManagerTypeHTTP successBlock:^(NSURLSessionDataTask *dataTask, id responseObject) {
+    [RequestService normalRequestWithBaseURLStr8:urlStr params:params httpMethod:HttpMethodGet userInfo:nil requestManagerType: QRequestManagerTypeHTTP successBlock:^(NSURLSessionDataTask *dataTask, id responseObject) {
         DDLogDebug(@"mintage_getnep5transferbytxid responseObject=%@",responseObject);
         NSDictionary *responseDic = [responseObject mj_JSONObject];
 //        NSArray *resultDic = responseDic[@"result"];
@@ -441,7 +534,11 @@ static NSString * const PublicKeyB = @"02c6e68c61480003ed163f72b41cbb50ded29d79e
 //                });
 //            } else {
                 if (resultHandler) {
-                    resultHandler(nil, NO);
+                    NSString *des = [@"neo_get_transaction error" stringByAppendingFormat:@"   ***method:%@   ***error:%@",urlStr,[responseObject mj_JSONString]];
+                    resultHandler(nil, NO, des);
+                    NSString *className = NSStringFromClass([self class]);
+                    NSString *methodName = NSStringFromSelector(_cmd);
+                    [QLogHelper requestLog_saveWithClass:className method:methodName logStr:des];
                 }
 //            }
         }
@@ -459,7 +556,7 @@ static NSString * const PublicKeyB = @"02c6e68c61480003ed163f72b41cbb50ded29d79e
     
 }
 
-- (void)nep5_mintagePledge:(NSString *)lockTxId qlc_publicKey:(NSString *)qlc_publicKey qlc_privateKey:(NSString *)qlc_privateKey resultHandler:(void (^)(NSString *result, BOOL success))resultHandler {
+- (void)nep5_mintagePledge:(NSString *)lockTxId qlc_publicKey:(NSString *)qlc_publicKey qlc_privateKey:(NSString *)qlc_privateKey resultHandler:(QContractResultBlock)resultHandler {
     AFJSONRPCClient *client = [AFJSONRPCClient clientWithEndpointURL:[NSURL URLWithString:[ConfigUtil get_qlc_staking_node]]];
     // Invocation with Parameters and Request ID
     NSString *requestId = [NSString randomOf32];
@@ -473,12 +570,20 @@ static NSString * const PublicKeyB = @"02c6e68c61480003ed163f72b41cbb50ded29d79e
             [weakself signAndWork:responseObject qlc_publicKey:qlc_publicKey qlc_privateKey:qlc_privateKey lockTxId:lockTxId unlockTxParams:nil resultHandler:resultHandler];
         } else {
             if (resultHandler) {
-                resultHandler(nil, NO);
+                NSString *des = [@"nep5_mintagePledge error" stringByAppendingFormat:@"   ***method:%@   ***error:%@",@"nep5_mintagePledge",[responseObject mj_JSONString]];
+                resultHandler(nil, NO, des);
+                NSString *className = NSStringFromClass([self class]);
+                NSString *methodName = NSStringFromSelector(_cmd);
+                [QLogHelper requestLog_saveWithClass:className method:methodName logStr:des];
             }
         }
     } failure:^(NSURLSessionDataTask *task, NSError *error) {
         if (resultHandler) {
-            resultHandler(nil, NO);
+            NSString *des = [@"nep5_mintagePledge error" stringByAppendingFormat:@"   ***method:%@   ***error:%@",@"nep5_mintagePledge",error.description];
+            resultHandler(nil, NO, des);
+            NSString *className = NSStringFromClass([self class]);
+            NSString *methodName = NSStringFromSelector(_cmd);
+            [QLogHelper requestLog_saveWithClass:className method:methodName logStr:des];
         }
         
         NSLog(@"error=%@",error);
@@ -487,7 +592,7 @@ static NSString * const PublicKeyB = @"02c6e68c61480003ed163f72b41cbb50ded29d79e
 }
 
 #pragma mark - Mintag Withdraw
-- (void)nep5_mintageWithdraw:(NSString *)lockTxId tokenId:(NSString *)tokenId resultHandler:(void (^)(NSString *result, BOOL success))resultHandler {
+- (void)nep5_mintageWithdraw:(NSString *)lockTxId tokenId:(NSString *)tokenId resultHandler:(QContractResultBlock)resultHandler {
     AFJSONRPCClient *client = [AFJSONRPCClient clientWithEndpointURL:[NSURL URLWithString:[ConfigUtil get_qlc_staking_node]]];
     // Invocation with Parameters and Request ID
     NSString *requestId = [NSString randomOf32];
@@ -499,16 +604,24 @@ static NSString * const PublicKeyB = @"02c6e68c61480003ed163f72b41cbb50ded29d79e
         
         if (responseObject) {
             if (resultHandler) {
-                resultHandler(responseObject, YES);
+                resultHandler(responseObject, YES, nil);
             }
         } else {
             if (resultHandler) {
-                resultHandler(nil, NO);
+                NSString *des = [@"nep5_mintageWithdraw error" stringByAppendingFormat:@"   ***method:%@   ***error:%@",@"nep5_mintageWithdraw",[responseObject mj_JSONString]];
+                resultHandler(nil, NO, des);
+                NSString *className = NSStringFromClass([self class]);
+                NSString *methodName = NSStringFromSelector(_cmd);
+                [QLogHelper requestLog_saveWithClass:className method:methodName logStr:des];
             }
         }
     } failure:^(NSURLSessionDataTask *task, NSError *error) {
         if (resultHandler) {
-            resultHandler(nil, NO);
+            NSString *des = [@"nep5_mintageWithdraw error" stringByAppendingFormat:@"   ***method:%@   ***error:%@",@"nep5_mintageWithdraw",error.description];
+            resultHandler(nil, NO, des);
+            NSString *className = NSStringFromClass([self class]);
+            NSString *methodName = NSStringFromSelector(_cmd);
+            [QLogHelper requestLog_saveWithClass:className method:methodName logStr:des];
         }
         
         NSLog(@"error=%@",error);
@@ -517,21 +630,25 @@ static NSString * const PublicKeyB = @"02c6e68c61480003ed163f72b41cbb50ded29d79e
 }
 
 #pragma mark - SignAndWork
-- (void)signAndWork:(NSDictionary *)dic qlc_publicKey:(NSString *)qlc_publicKey qlc_privateKey:(NSString *)qlc_privateKey lockTxId:(NSString *)lockTxId unlockTxParams:(NSDictionary *)unlockTxParams resultHandler:(void (^)(NSString *result, BOOL success))resultHandler {
+- (void)signAndWork:(NSDictionary *)dic qlc_publicKey:(NSString *)qlc_publicKey qlc_privateKey:(NSString *)qlc_privateKey lockTxId:(NSString *)lockTxId unlockTxParams:(NSDictionary *)unlockTxParams resultHandler:(QContractResultBlock)resultHandler {
     kWeakSelf(self);
     [QLCWalletManage signAndWork:dic publicKey:qlc_publicKey privateKey:qlc_privateKey resultHandler:^(NSDictionary * _Nullable responseDic) {
         if (responseDic) {
             [weakself ledger_process:lockTxId blockDic:responseDic unlockTxParams:unlockTxParams resultHandler:resultHandler];
         } else {
             if (resultHandler) {
-                resultHandler(nil, NO);
+                NSString *des = [@"sign_work error" stringByAppendingFormat:@"   ***method:%@   ***error:%@",@"signAndWork",[responseDic mj_JSONString]];
+                resultHandler(nil, NO, des);
+                NSString *className = NSStringFromClass([self class]);
+                NSString *methodName = NSStringFromSelector(_cmd);
+                [QLogHelper requestLog_saveWithClass:className method:methodName logStr:des];
             }
         }
     }];
 }
 
 #pragma mark - Process
-- (void)ledger_process:(NSString *)lockTxId blockDic:(NSDictionary *)blockDic unlockTxParams:(NSDictionary *)unlockTxParams resultHandler:(void (^)(NSString *result, BOOL success))resultHandler {
+- (void)ledger_process:(NSString *)lockTxId blockDic:(NSDictionary *)blockDic unlockTxParams:(NSDictionary *)unlockTxParams resultHandler:(QContractResultBlock)resultHandler {
     AFJSONRPCClient *client = [AFJSONRPCClient clientWithEndpointURL:[NSURL URLWithString:[ConfigUtil get_qlc_staking_node]]];
     // Invocation with Parameters and Request ID
     NSString *requestId = [NSString randomOf32];
@@ -546,11 +663,15 @@ static NSString * const PublicKeyB = @"02c6e68c61480003ed163f72b41cbb50ded29d79e
         
 //        NSString *result = responseObject[@"result"];
         if (resultHandler) {
-            resultHandler(responseObject, YES);
+            resultHandler(responseObject, YES, nil);
         }
     } failure:^(NSURLSessionDataTask *task, NSError *error) {
         if (resultHandler) {
-            resultHandler(nil, NO);
+            NSString *des = [@"ledger_process error" stringByAppendingFormat:@"   ***method:%@    ***error:%@",@"ledger_process",error.description];
+            resultHandler(nil, NO, des);
+            NSString *className = NSStringFromClass([self class]);
+            NSString *methodName = NSStringFromSelector(_cmd);
+            [QLogHelper requestLog_saveWithClass:className method:methodName logStr:des];
         }
         NSLog(@"error=%@",error);
     }];

@@ -37,8 +37,8 @@
 #import "FingerprintVerificationUtil.h"
 #import "NSDate+Category.h"
 #import "UserUtil.h"
-
-@import Firebase;
+#import "QLogHelper.h"
+#import "ClaimQGASTipView.h"
 
 @interface AppDelegate () <MiPushSDKDelegate, UNUserNotificationCenterDelegate, UIApplicationDelegate> {
 //    BOOL isBackendRun;
@@ -55,7 +55,7 @@
     // Override point for customization after application launch.
     
     [[NSUserDefaults standardUserDefaults] setValue:@(NO) forKey:@"_UIConstraintBasedLayoutLogUnsatisfiable"]; //隐藏 constraint log
-        
+    
 //    [UserModel deleteOneAccount];
 //    [NEOWalletUtil deleteAllWallet];
 //    [LoginPWModel deleteLoginPW];
@@ -69,7 +69,7 @@
     self.window = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
     
    // 配置Firebase
-    [FIRApp configure];
+    [self configFirebase];
     // 配置DDLog
     [self configDDLog];
     // 配置app语言
@@ -168,6 +168,10 @@
     } else {
         kAppD.tabbarC.selectedIndex = TabbarIndexWallet;
     }
+}
+
+- (void)jumpToOTC {
+    kAppD.tabbarC.selectedIndex = TabbarIndexFinance;
 }
 
 #pragma mark - Login
@@ -435,26 +439,32 @@ didFailToRegisterForRemoteNotificationsWithError:(NSError *)err {
 
 
 #pragma mark - 第三方app传输文件回调
-#if __IPHONE_OS_VERSION_MAX_ALLOWED < __IPHONE_9_0
-- (BOOL)application:(UIApplication *)application openURL:(NSURL *)url sourceApplication:(nullable NSString *)sourceApplication annotation:(id)annotation
-{
-
-    return YES;
-}
-
-#else
+//#if __IPHONE_OS_VERSION_MAX_ALLOWED < __IPHONE_9_0
+//- (BOOL)application:(UIApplication *)application openURL:(NSURL *)url sourceApplication:(nullable NSString *)sourceApplication annotation:(id)annotation
+//{
+//
+//    return YES;
+//}
+//
+//#else
 - (BOOL)application:(UIApplication *)application openURL:(NSURL *)url options:(nonnull NSDictionary<NSString *,id> *)options
 {
-    if ([_window.rootViewController isKindOfClass:[QlinkTabbarViewController class]]) {
-        [self performSelector:@selector(showVPNFileView:) withObject:url afterDelay:.5f];
-    } else {
-        NSTimeInterval timeI = [LaunchViewController getGifDuration];
-        [self performSelector:@selector(showVPNFileView:) withObject:url afterDelay:timeI + 0.2f];
+//    if ([_window.rootViewController isKindOfClass:[QlinkTabbarViewController class]]) {
+//        [self performSelector:@selector(showVPNFileView:) withObject:url afterDelay:.5f];
+//    } else {
+//        NSTimeInterval timeI = [LaunchViewController getGifDuration];
+//        [self performSelector:@selector(showVPNFileView:) withObject:url afterDelay:timeI + 0.2f];
+//    }
+    
+    // H5微信支付的回调
+    if ([url.scheme isEqualToString:Weixin_Pay_Url_Scheme]) {
+        NSLog(@"********走微信支付回调 %@",url);
+        [[NSNotificationCenter defaultCenter] postNotificationName:Weixin_Pay_Back_Noti object:nil];
     }
     
     return YES;
 }
-#endif
+//#endif
 
 - (void) showVPNFileView:(NSURL *) url {
     NSString *fileURL = url.absoluteString;

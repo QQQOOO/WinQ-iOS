@@ -128,16 +128,18 @@
     kWeakSelf(self);
     _contractV = [QContractView addQContractView];
     [kAppD.window makeToastInView:kAppD.window text:kLang(@"process___")];
-    [_contractV nep5_getLockInfo:lockTxId resultHandler:^(NSString * _Nonnull result, BOOL success) {
+    [_contractV nep5_getLockInfo:lockTxId resultHandler:^(id result, BOOL success, NSString * _Nullable message) {
         if (success) {
-            NSString *neo_publicKey = [NEOWalletInfo getNEOPublickKeyWithAddress:result];
-            NSString *neo_privateKey = [NEOWalletInfo getNEOPrivateKeyWithAddress:result];
+            NSString *neo_address = result[@"neoAddress"];
+            NSString *neo_publicKey = [NEOWalletInfo getNEOPublickKeyWithAddress:neo_address];
+            NSString *neo_privateKey = [NEOWalletInfo getNEOPrivateKeyWithAddress:neo_address];
             if (!neo_publicKey) {
                 [kAppD.window hideToast];
-                [kAppD.window makeToastDisappearWithText:[NSString stringWithFormat:@"%@(%@)",kLang(@"the_wallet_is_none___"),result]];
+                [QContractView removeQContractView:weakself.contractV];
+                [kAppD.window makeToastDisappearWithText:[NSString stringWithFormat:@"%@(%@)",kLang(@"the_wallet_is_none___"),neo_address]];
                 return;
             }
-            [weakself.contractV nep5_benefitWithdraw:lockTxId beneficial:beneficial amount:qlcAmount qlc_publicKey:qlc_publicKey qlc_privateKey:qlc_privateKey neo_publicKey:neo_publicKey neo_privateKey:neo_privateKey multisigAddress:multisigAddress resultHandler:^(NSString * _Nonnull result, BOOL success) {
+            [weakself.contractV nep5_benefitWithdraw:lockTxId beneficial:beneficial amount:qlcAmount qlc_publicKey:qlc_publicKey qlc_privateKey:qlc_privateKey neo_publicKey:neo_publicKey neo_privateKey:neo_privateKey multisigAddress:multisigAddress resultHandler:^(id result, BOOL success, NSString * _Nullable message) {
                 [kAppD.window hideToast];
                 [QContractView removeQContractView:weakself.contractV];
                 if (success) {
@@ -145,40 +147,96 @@
 //                    [weakself ledger_pledgeInfoByTransactionID];
                     [weakself.navigationController popToRootViewControllerAnimated:YES];
                 } else {
-                    [kAppD.window makeToastDisappearWithText:kLang(@"failed_")];
+                    NSString *tip = [kLang(@"failed_") stringByAppendingFormat:@"(%@)",message ?: @""];
+                    [kAppD.window makeToastDisappearWithText:tip];
                 }
             }];
         } else {
             [kAppD.window hideToast];
-            [kAppD.window makeToastDisappearWithText:kLang(@"failed_")];
+            [QContractView removeQContractView:weakself.contractV];
+            NSString *tip = [kLang(@"failed_") stringByAppendingFormat:@"(%@)",message ?: @""];
+            [kAppD.window makeToastDisappearWithText:tip];
         }
     }];
 }
 
-- (void)vote_continueInvoke {
+- (void)vote_continueInvoke_pledgestart {
     if (!_inputPledgeM) {
         return;
     }
-    NSString *qlcAddress = _inputPledgeM.beneficial;
-    NSString *qlc_publicKey = [QLCWalletInfo getQLCPublicKeyWithAddress:qlcAddress];
-    NSString *qlc_privateKey = [QLCWalletInfo getQLCPrivateKeyWithAddress:qlcAddress];
+//    NSString *qlcAddress = _inputPledgeM.beneficial;
+//    NSString *qlc_publicKey = [QLCWalletInfo getQLCPublicKeyWithAddress:qlcAddress];
+//    NSString *qlc_privateKey = [QLCWalletInfo getQLCPrivateKeyWithAddress:qlcAddress];
     NSString *lockTxId = _inputPledgeM.nep5TxId;
     kWeakSelf(self);
-//    [kAppD.window makeToastInView:kAppD.window text:kLang(@"process___")];
     _contractV = [QContractView addQContractView];
     [self showRevokingProcessView];
-    [_contractV benefit_getnep5transferbytxid:lockTxId qlc_publicKey:qlc_publicKey qlc_privateKey:qlc_privateKey resultHandler:^(NSString * _Nonnull result, BOOL success) {
-//        [kAppD.window hideToast];
-        [weakself hideRevokingProcessView];
-        [QContractView removeQContractView:weakself.contractV];
+//    [_contractV benefit_getnep5transferbytxid:lockTxId qlc_publicKey:qlc_publicKey qlc_privateKey:qlc_privateKey resultHandler:^(id result, BOOL success, NSString * _Nullable message) {
+//        [weakself hideRevokingProcessView];
+//        [QContractView removeQContractView:weakself.contractV];
+//        if (success) {
+//            [kAppD.window makeToastDisappearWithText:kLang(@"success_")];
+//            [weakself.navigationController popToRootViewControllerAnimated:YES];
+//        } else {
+//            NSString *tip = [kLang(@"failed_") stringByAppendingFormat:@"(%@)",message ?: @""];
+//            [kAppD.window makeToastDisappearWithText:tip];
+//        }
+//    }];
+    
+    [_contractV nep5_getLockInfo:lockTxId resultHandler:^(id result, BOOL success, NSString * _Nullable message) {
         if (success) {
-            [kAppD.window makeToastDisappearWithText:kLang(@"success_")];
-//            [weakself ledger_pledgeInfoByTransactionID];
-            [weakself.navigationController popToRootViewControllerAnimated:YES];
+            NSDictionary *dic = result;
+            NSString *neoAddress = dic[@"neoAddress"];
+            NSString *qlcAddress = dic[@"qlcAddress"];
+            NSString *neo_publicKey = [NEOWalletInfo getNEOPublickKeyWithAddress:neoAddress];
+//            NSString *neo_privateKey = [NEOWalletInfo getNEOPrivateKeyWithAddress:neoAddress];
+            NSString *qlc_publicKey = [QLCWalletInfo getQLCPublicKeyWithAddress:qlcAddress];
+            NSString *qlc_privateKey = [QLCWalletInfo getQLCPrivateKeyWithAddress:qlcAddress];
+            NSString *multiSigAddress = dic[@"multiSigAddress"];
+            NSString *qlcAmount = dic[@"amount"];
+            NSString *state = dic[@"state"];
+            if (!neo_publicKey) {
+                [weakself hideRevokingProcessView];
+                [QContractView removeQContractView:weakself.contractV];
+                [kAppD.window makeToastDisappearWithText:[NSString stringWithFormat:@"%@(%@)",kLang(@"the_wallet_is_none___"),neoAddress]];
+                return;
+            }
+            if (!qlc_publicKey) {
+                [weakself hideRevokingProcessView];
+                [QContractView removeQContractView:weakself.contractV];
+                [kAppD.window makeToastDisappearWithText:[NSString stringWithFormat:@"%@(%@)",kLang(@"the_wallet_is_none___"),qlcAddress]];
+                return;
+            }
+            if ([state integerValue] == 0) {
+                [weakself hideRevokingProcessView];
+                [QContractView removeQContractView:weakself.contractV];
+                return;
+            }
+
+            NSString *qlc_amount = [NSString stringWithFormat:@"%@",@([qlcAmount doubleValue]/QLC_UnitNum)];
+            [weakself.contractV nep5_prePareBenefitPledge:qlcAddress qlcAmount:qlc_amount multiSigAddress:multiSigAddress neo_publicKey:neo_publicKey lockTxId:lockTxId qlc_privateKey:qlc_privateKey qlc_publicKey:qlc_publicKey resultHandler:^(NSString * _Nullable result, BOOL success, NSString * _Nullable message) {
+                [weakself hideRevokingProcessView];
+                [QContractView removeQContractView:weakself.contractV];
+                if (success) {
+                    [kAppD.window makeToastDisappearWithText:kLang(@"success_")];
+                    [weakself.navigationController popToRootViewControllerAnimated:YES];
+                } else {
+                    NSString *tip = [kLang(@"failed_") stringByAppendingFormat:@"(%@)",message ?: @""];
+                    [kAppD.window makeToastDisappearWithText:tip];
+                }
+            }];
+            
         } else {
-            [kAppD.window makeToastDisappearWithText:kLang(@"failed_")];
+            [weakself hideRevokingProcessView];
+            [QContractView removeQContractView:weakself.contractV];
+//            NSString *tip = [kLang(@"failed_") stringByAppendingFormat:@"(%@)",message ?: @""];
+//            [kAppD.window makeToastDisappearWithText:tip];
         }
     }];
+}
+
+- (void)vote_continueInvoke_pledgeprocess {
+    [self vote_continueInvoke_pledgestart];
 }
 
 - (void)startMintageWithdraw {
@@ -190,7 +248,7 @@
     kWeakSelf(self);
     _contractV = [QContractView addQContractView];
     [kAppD.window makeToastInView:kAppD.window text:kLang(@"process___")];
-    [_contractV nep5_mintageWithdraw:lockTxId tokenId:tokenId resultHandler:^(NSString * _Nonnull result, BOOL success) {
+    [_contractV nep5_mintageWithdraw:lockTxId tokenId:tokenId resultHandler:^(id result, BOOL success, NSString * _Nullable message) {
         [kAppD.window hideToast];
         [QContractView removeQContractView:weakself.contractV];
         if (success) {
@@ -198,7 +256,8 @@
 //            [weakself ledger_pledgeInfoByTransactionID];
             [weakself.navigationController popToRootViewControllerAnimated:YES];
         } else {
-            [kAppD.window makeToastDisappearWithText:kLang(@"failed_")];
+            NSString *tip = [kLang(@"failed_") stringByAppendingFormat:@"(%@)",message ?: @""];
+            [kAppD.window makeToastDisappearWithText:tip];
         }
     }];
 }
@@ -246,9 +305,9 @@
 - (IBAction)stateBtnAction:(id)sender {
     if ([_inputPledgeM.pType isEqualToString:@"vote"]) {
         if ([_inputPledgeM.state isEqualToString:PledgeState_PledgeStart]) {
-            [self vote_continueInvoke];
+            [self vote_continueInvoke_pledgestart];
         } else if ([_inputPledgeM.state isEqualToString:PledgeState_PledgeProcess]) {
-            [self vote_continueInvoke];
+            [self vote_continueInvoke_pledgeprocess];
         } else if ([_inputPledgeM.state isEqualToString:PledgeState_PledgeDone]) {
             if ([StakingUtil isRedeemable:[_inputPledgeM.withdrawTime doubleValue]]) { // 可赎回
                  [self startBenefitWithdraw];
